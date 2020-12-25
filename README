@@ -1,0 +1,84 @@
+Yukuan Hao,Zhaoyi Wang,Shuting Wang,Liang Gu
+yhao18@ubishops.ca,lgu182@ubishops.ca,michealhahahaha@gmail.com,swang183@ubishops.ca,zwang185@ubishops.ca
+Documentation
+1.User guide:
+
+The following command line is accepted:
+
+  bbserv [-b filename [-f] [-d] [-T thread_number] [-p port] [-s port][-c filename][peer_host:peer_port]
+
+where
+  
+  -b  overrides (or sets) the file name bbfile according to its argument
+  -f  (with no argument) forces d to false or 0
+  -T  overrides Thmax according to its argument
+  -p  overrides the port number bp according to its argument
+  -s  overrides the port number sp according to its argument
+  -d  (with no argument) forces D to true or 1
+  -c  overrides (or sets) the file name configuration according to its argument 
+
+The non switch argument should at last,other options can use any order.
+
+2.Supporting files:
+
+o  Module tcp-utils, unchanged except for adding code that makes the
+    socket reusable.
+    
+o  Module tokenize, we change the variable type size_t to int to 
+    avoid compile warning.
+    
+o  The makefile, whose target `all' makes the server.
+
+3. Implementation details
+
+We use the solution for cs564 Assignment 3 (by stefan Bruda) as a reference to do this
+project, we directly use "connectbyport()(from tcp-utils.cc)","passivesocket()(from tcp-utils.cc)",
+"next_arg()(from misc.cc)","ip_to_dotted()(from misc.cc)","logger()(from misc.cc)" functions to help 
+us finish this project, there are lots of flags in our code to help us deal with different scenarios.
+
+4.algorithm descriptions
+  read_file function: in this function, the function need get the mutex lock first and search the 
+  message number from file, and put the message into buffer,the return value represent whether the 
+  command is successful.
+  
+  check_file function: we create this function to find the maximum number from bbfile and return this 
+  maximum number as next message number.
+  
+  write_file function: first,we need get mutex lock and wait other read operation finished,then
+  we use lseek() function to move write place at the end of the file, then use write() to write a line 
+  into bbfile.
+  
+  replace_file function: this function is similiar with write_file function, but it is more complex,
+  first we need get the mutex lock and wait other read operation finished, then we use readline() function
+  to find the message number which we want to replace,then there has three conditions: new message length is
+  greater than original message,new message length is less than original message,new message length is equal 
+  to original message. We use different strategies to deal those three scenarios, and we put new message into different
+  place based on different strategies.
+  
+  replicate function: this function is to connect to other peer servers to do data synchronization, we use 
+  select() function to set a timeout and communicate with peer servers. In this function, we send messages to 
+  peer server in order, and we use some flag to track the response number from peer server, from our test result
+  this function works well.
+  
+  undo function: this function can undo both write and replace command, we create some global variable to store
+  the message, message number, and command type,so when we need undo, the undo function will use those global variable
+  to perform operation.
+  
+  sync_server function: this function is use to serve peer server for  data synchronization, it will response special 
+  command and make some response when the client disconnected due to some problems, it use flags to determine whether
+  the server need perform undo operation.  
+  
+  bbs_server function: this function is use to serve client, recieve command and based on command to change the data 
+  in bbfile.
+  
+  readconfiguration function: this function is use to read the parameters from configuration file,because command line 
+  option has precedence, so we add a parameter for this function, when parameter equal to one, this function only check
+  peer server and bbfile name.
+  
+  DEAL_SIGHUP function: this function is used to handle SIGHUP signal,first It closes all the master sockets, terminates
+  all the preallocated threads immediately after the current command (if any) is completed, and then closes
+  all the connections to all the clients, then restart the server. 
+  
+  DEAL_SIGQUIT function:this function is similiar with DEAL_SIGHUP function.It will close server instead of restarting
+  the server.
+  

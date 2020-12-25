@@ -1,0 +1,27 @@
+two-phrase commit protocol design
+when a server recieve write or replace command from client, it will becomes the client for other peer servers.(it will connect
+to all peer servers) We call this server as master, other peer servers called slaves.
+For master:
+  step 1:connect to all peer servers,and wait for response from all peer servers, if timeout or recieve negative response, 
+  it will send "ABORT" message to peer server and disconnect to all peerserver,and send error message to client and end 
+  data synchronization process,if recieve positive response from all peer server,go step2.
+  step 2:master will send "PRECOMMIT" to peer servers and wait for response from peer servers, if timeout or recieve negative
+  response, it will send "ABORT" message to peer server and disconnect to all peerserver,and send error message to client 
+  and end data synchronization process,if recieve positive response from all peer server,go step3.
+  step 3:master will send "COMMIT"+command to peer servers and wait for response from peer servers, if timeout or recieve 
+  negativeresponse, it will send "UNSUCCESSFUL" message to peer server and disconnect to all peerserver,and send error message to
+  client and end data synchronization process,if recieve "SUCCCESS" from all peer server,go step4.
+  step 4:master will preform the command in local,if the command success,it will send "SUCCESSFUL" to peer server and disconnected
+  if the command failed, it will send "UNSUCCESSFUL" to peer server, and close connection.
+  
+For slaves:(there should be only one thread to serve master to avoid multi-master condition)
+  the slaves will make response when they recieve specific command:
+  establish connection from master: send "BEGIN"(tell master this server is avaiable)
+  recieve "PRECOMMIT": send "positive" if server is avaiable,otherwise send "negative"
+  recieve "COMMIT"+command: extract command and perform the command in local, if success then send "SUCCESS",otherwise
+  send "UNSUCCESS"+error number.
+  recieve "SUCCESSFUL":close the connection between master
+  recieve "UNSUCCESSFUL":server will check whether it perform the command successfully,if server perform the command successfully,
+  it will perform roll back function, then close the connection.Otherwise, it will directly close the connection.
+  recieve "ABORT":server will check whether it perform the command successfully,if server perform the command successfully,
+  it will perform roll back function, then close the connection.Otherwise, it will directly close the connection.
